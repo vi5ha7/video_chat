@@ -25,11 +25,13 @@ app.use(express.static("public"));
 
 const rooms = {};
 
+// ✅ Redirect to /room/:uuid instead of just /:uuid
 app.get("/", (req, res) => {
-  res.redirect(`/${uuidv4()}`);
+  res.redirect(`/room/${uuidv4()}`);
 });
 
-app.get("/:room", (req, res) => {
+// ✅ Correctly serve /room/:roomId
+app.get("/room/:room", (req, res) => {
   res.render("room", { roomId: req.params.room });
 });
 
@@ -40,10 +42,7 @@ io.on("connection", (socket) => {
     if (!rooms[roomId]) rooms[roomId] = [];
     rooms[roomId].push(userId);
 
-    // Send existing users to new user
     socket.emit("all-users", rooms[roomId].filter(id => id !== userId));
-
-    // Notify others about new user
     socket.to(roomId).broadcast.emit("user-connected", userId);
 
     socket.on("message", (message) => {
