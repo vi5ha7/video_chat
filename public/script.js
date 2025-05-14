@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const showChat = document.querySelector("#showChat");
   const backBtn = document.querySelector(".header__back");
+  const connectedUsers = {}; // ✅ Track connected users to avoid duplicates
 
   backBtn.addEventListener("click", () => {
     document.querySelector(".main__left").style.display = "flex";
@@ -40,10 +41,20 @@ document.addEventListener("DOMContentLoaded", () => {
     addVideoStream(myVideo, stream);
 
     peer.on("call", (call) => {
+      if (connectedUsers[call.peer]) return; // prevent duplicates
       call.answer(stream);
       const video = document.createElement("video");
+
       call.on("stream", (userVideoStream) => {
-        addVideoStream(video, userVideoStream);
+        if (!connectedUsers[call.peer]) {
+          addVideoStream(video, userVideoStream);
+          connectedUsers[call.peer] = true;
+        }
+      });
+
+      call.on("close", () => {
+        video.remove();
+        delete connectedUsers[call.peer];
       });
     });
 
@@ -63,10 +74,21 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   const connectToNewUser = (userId, stream) => {
+    if (connectedUsers[userId]) return;
+
     const call = peer.call(userId, stream);
     const video = document.createElement("video");
+
     call.on("stream", (userVideoStream) => {
-      addVideoStream(video, userVideoStream);
+      if (!connectedUsers[userId]) {
+        addVideoStream(video, userVideoStream);
+        connectedUsers[userId] = true;
+      }
+    });
+
+    call.on("close", () => {
+      video.remove();
+      delete connectedUsers[userId];
     });
   };
 
@@ -74,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
     video.srcObject = stream;
     video.addEventListener("loadedmetadata", () => {
       video.play();
-      videoGrid.append(video);
+      videoGrid.append(video); // ✅ ONLY append; never innerHTML
     });
   };
 
@@ -119,10 +141,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   socket.on("createMessage", (message, userName) => {
-    messages.innerHTML += `
-      <div class="message">
-        <b><i class="far fa-user-circle"></i> <span>${userName === user ? "me" : userName}</span></b>
-        <span>${message}</span>
-      </div>`;
+    const msg = document.createElement("div");
+    msg.classList.add("message");
+    msg.innerHTML = `
+      <b><i class="far fa-user-circle"></i> <span>${userName === user ? "me" : userName}</span></b>
+      <span>${message}</span>
+    `;
+    messages.append(msg);
   });
 });
