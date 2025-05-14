@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const showChat = document.querySelector("#showChat");
   const backBtn = document.querySelector(".header__back");
-  const connectedUsers = {}; // ✅ Track connected users to avoid duplicates
+  const connectedUsers = {}; // Store { call, video }
 
   backBtn.addEventListener("click", () => {
     document.querySelector(".main__left").style.display = "flex";
@@ -41,14 +41,15 @@ document.addEventListener("DOMContentLoaded", () => {
     addVideoStream(myVideo, stream);
 
     peer.on("call", (call) => {
-      if (connectedUsers[call.peer]) return; // prevent duplicates
+      if (connectedUsers[call.peer]) return;
+
       call.answer(stream);
       const video = document.createElement("video");
 
       call.on("stream", (userVideoStream) => {
         if (!connectedUsers[call.peer]) {
           addVideoStream(video, userVideoStream);
-          connectedUsers[call.peer] = true;
+          connectedUsers[call.peer] = { call, video };
         }
       });
 
@@ -67,6 +68,14 @@ document.addEventListener("DOMContentLoaded", () => {
         connectToNewUser(userId, stream);
       });
     });
+
+    socket.on("user-disconnected", (userId) => {
+      if (connectedUsers[userId]) {
+        connectedUsers[userId].call.close();
+        connectedUsers[userId].video.remove();
+        delete connectedUsers[userId];
+      }
+    });
   });
 
   peer.on("open", (id) => {
@@ -82,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
     call.on("stream", (userVideoStream) => {
       if (!connectedUsers[userId]) {
         addVideoStream(video, userVideoStream);
-        connectedUsers[userId] = true;
+        connectedUsers[userId] = { call, video };
       }
     });
 
@@ -96,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
     video.srcObject = stream;
     video.addEventListener("loadedmetadata", () => {
       video.play();
-      videoGrid.append(video); // ✅ ONLY append; never innerHTML
+      videoGrid.append(video);
     });
   };
 
