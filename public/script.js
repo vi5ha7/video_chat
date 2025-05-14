@@ -22,8 +22,9 @@ const user = prompt("Enter your name");
 
 var peer = new Peer(undefined, {
   host: window.location.hostname,
-  port: 3030,
+  port: window.location.port || (location.protocol === 'https:' ? 443 : 80),
   path: '/peerjs',
+  secure: location.protocol === 'https:',
   debug: 3
 });
 
